@@ -1,108 +1,119 @@
 import sys
 import cv2
-import numpy as np
-from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QPushButton, QFileDialog, QVBoxLayout, QWidget, QComboBox
+from PyQt5.QtWidgets import (
+    QApplication,
+    QMainWindow,
+    QPushButton,
+    QLabel,
+    QFileDialog,
+    QVBoxLayout,
+    QWidget,
+    QHBoxLayout,
+)
 from PyQt5.QtGui import QPixmap, QImage
 from PyQt5.QtCore import Qt
-import logging
-
-# Set up logging
-logging.basicConfig(level=logging.DEBUG)
+from image_processor import convert_to_grayscale
 
 
-class PhotoToDrawingProcessor(QMainWindow):
+class ImageApp(QMainWindow):
     def __init__(self):
+        """
+        Initializes the main application window and UI components.
+        """
         super().__init__()
-        self.setWindowTitle("Photo to Drawing Processor")
+        self.original_image = None
+        self.grayscale_button = None
+        self.load_button = None
+        self.image_label = None
+        self.init_ui()
+
+    def init_ui(self):
+        """
+        Sets up the user interface, including buttons and labels.
+        """
+        self.setWindowTitle("Image Processor")
         self.setGeometry(100, 100, 800, 600)
 
-        # Main container
-        self.central_widget = QWidget()
-        self.setCentralWidget(self.central_widget)
-        self.layout = QVBoxLayout(self.central_widget)
+        # Layout setup
+        main_layout = QVBoxLayout()
+        button_layout = QHBoxLayout()
 
-        # Widgets
-        self.image_label = QLabel("Load an image to start processing")
+        # Image display label
+        self.image_label = QLabel("No Image Loaded")
         self.image_label.setAlignment(Qt.AlignCenter)
-        self.layout.addWidget(self.image_label)
+        main_layout.addWidget(self.image_label)
 
-        self.effect_combo = QComboBox()
-        self.effect_combo.addItems(["Select Effect", "Grayscale", "Edge Detection"])
-        self.layout.addWidget(self.effect_combo)
-
+        # Buttons
         self.load_button = QPushButton("Load Image")
         self.load_button.clicked.connect(self.load_image)
-        self.layout.addWidget(self.load_button)
+        button_layout.addWidget(self.load_button)
 
-        self.apply_button = QPushButton("Apply Effect")
-        self.apply_button.clicked.connect(self.apply_effect)
-        self.layout.addWidget(self.apply_button)
+        self.grayscale_button = QPushButton("Convert to Grayscale")
+        self.grayscale_button.clicked.connect(self.apply_grayscale)
+        self.grayscale_button.setEnabled(False)  # Disabled initially
+        button_layout.addWidget(self.grayscale_button)
 
-        # Image data
-        self.loaded_image = None
-        self.processed_image = None
+        # Add button layout to the main layout
+        main_layout.addLayout(button_layout)
+
+        # Set the central widget
+        container = QWidget()
+        container.setLayout(main_layout)
+        self.setCentralWidget(container)
+
+        # Internal attributes
+        self.original_image = None
 
     def load_image(self):
-        file_path, _ = QFileDialog.getOpenFileName(self, "Open Image", "", "Image Files (*.png *.jpg *.jpeg *.bmp)")
-        if file_path:
-            logging.info(f"Image loaded: {file_path}")
-            self.loaded_image = cv2.imread(file_path)
-            self.display_image(self.loaded_image)
+        """
+        Loads an image from the file system and displays it in the application.
 
-    def apply_effect(self):
-        if self.loaded_image is None:
-            logging.warning("No image loaded to apply effect.")
-            self.image_label.setText("Please load an image first!")
-            return
+        Opens a file dialog to choose an image file.
+        """
+        file_name, _ = QFileDialog.getOpenFileName(
+            self, "Open Image", "", "Image Files (*.png *.jpg *.jpeg *.bmp)"
+        )
+        if file_name:
+            self.original_image = cv2.imread(file_name)
+            if self.original_image is not None:
+                self.display_image(self.original_image)
+                self.grayscale_button.setEnabled(True)
 
-        selected_effect = self.effect_combo.currentText()
-        if selected_effect == "Select Effect":
-            logging.warning("No effect selected.")
-            self.image_label.setText("Please select an effect!")
-            return
-
-        try:
-            logging.info(f"Applying effect: {selected_effect}")
-            if selected_effect == "Grayscale":
-                self.processed_image = self.to_grayscale(self.loaded_image)
-            elif selected_effect == "Edge Detection":
-                self.processed_image = self.edge_detection(self.loaded_image)
-
-            self.display_image(self.processed_image)
-            logging.info("Effect applied successfully.")
-
-        except Exception as e:
-            logging.error(f"Error while applying effect: {e}")
-            self.image_label.setText("Error applying effect. Check logs.")
-
-    def to_grayscale(self, image):
-        return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-
-    def edge_detection(self, image):
-        gray = self.to_grayscale(image)
-        return cv2.Canny(gray, 100, 200)
+    def apply_grayscale(self):
+        """
+        Applies the grayscale effect to the loaded image and displays the result.
+        """
+        if self.original_image is not None:
+            grayscale_image = convert_to_grayscale(self.original_image)
+            self.display_image(grayscale_image)
 
     def display_image(self, image):
-        try:
-            if len(image.shape) == 2:  # Grayscale
-                height, width = image.shape
-                q_image = QImage(image.data, width, height, QImage.Format_Grayscale8)
-            else:  # Color
-                height, width, channels = image.shape
-                bytes_per_line = channels * width
-                q_image = QImage(image.data, width, height, bytes_per_line, QImage.Format_BGR888)
+        """
+        Displays an image in the QLabel widget.
 
-            pixmap = QPixmap.fromImage(q_image)
-            self.image_label.setPixmap(pixmap.scaled(self.image_label.width(), self.image_label.height(), Qt.KeepAspectRatio))
+        Args:
+            image (np.ndarray): The image to be displayed (OpenCV format).
+        """
+        if len(image.shape) == 2:  # Grayscale image
+            height, width = image.shape
+            q_image = QImage(
+                image.data, width, height, width, QImage.Format_Grayscale8
+            )
+        else:  # Color image
+            height, width, channel = image.shape
+            bytes_per_line = channel * width
+            q_image = QImage(
+                image.data, width, height, bytes_per_line, QImage.Format_RGB888
+            ).rgbSwapped()
 
-        except Exception as e:
-            logging.error(f"Error displaying image: {e}")
-            self.image_label.setText("Failed to display image. Check logs.")
+        pixmap = QPixmap.fromImage(q_image)
+        self.image_label.setPixmap(
+            pixmap.scaled(self.image_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        )
 
 
-# Main execution
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    main_window = PhotoToDrawingProcessor()
-    main_window.show()
+    window = ImageApp()
+    window.show()
     sys.exit(app.exec_())
