@@ -26,12 +26,12 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgl1-mesa-glx libxkbcommon-x11-0 libxi6 libxtst6 libxrender1 libxfixes3 xvfb
+          sudo apt-get install -y libgl1-mesa-glx x11-utils libxkbcommon-x11-0 libxi6 libxtst6 libxrender1 libxfixes3 xvfb
 
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install -r requirements.txt pytest pytest-qt pytest-mock
+          pip install -r requirements.txt pytest pytest-qt pytest-mock coverage pyside2
 
       - name: Start Xvfb
         run: |
@@ -46,4 +46,4 @@ jobs:
           echo "DISPLAY: $DISPLAY"
 
       - name: Run GUI tests
-        run: xvfb-run -a python -m pytest tests/test_main.py --maxfail=1 --tb=long -vv
+        run: xvfb-run `which coverage` run -m pytest
