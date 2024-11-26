@@ -9,66 +9,85 @@ from PyQt5.QtWidgets import (
     QVBoxLayout,
     QWidget,
     QHBoxLayout,
+    QComboBox,
 )
 from PyQt5.QtGui import QPixmap, QImage
 from PyQt5.QtCore import Qt
-from image_processor import convert_to_grayscale
+from image_processor import (
+    convert_to_grayscale,
+    apply_sketch_effect,
+    apply_contour_effect,
+    apply_tattoo_calc_effect,
+)
 
 
 class ImageApp(QMainWindow):
+    """
+    Main application window for image processing.
+    GUI for loading images, applying effects, and saving the results.
+    """
+
     def __init__(self):
         """
         Initializes the main application window and UI components.
         """
         super().__init__()
-        self.original_image = None
-        self.grayscale_button = None
-        self.load_button = None
-        self.image_label = None
-        self.init_ui()
+        self.image_label = QLabel("No Image Loaded")
+        self.load_button = QPushButton("Load Image")
+        self.effect_combo = QComboBox()
+        self.save_button = QPushButton("Save Image")
+        self.apply_button = QPushButton("Apply Effect")
+        self.original_image = None  # Original loaded image (OpenCV format)
+        self.processed_image = None  # Image after applying selected effects
+        self.init_ui()  # Set up the UI
 
     def init_ui(self):
         """
-        Sets up the user interface, including buttons and labels.
+        Sets up the user interface.
         """
-        self.setWindowTitle("Image Processor")
+        self.setWindowTitle("Tracify")
         self.setGeometry(100, 100, 800, 600)
 
-        # Layout setup
+        # Main layout setup
         main_layout = QVBoxLayout()
         button_layout = QHBoxLayout()
 
         # Image display label
-        self.image_label = QLabel("No Image Loaded")
         self.image_label.setAlignment(Qt.AlignCenter)
         main_layout.addWidget(self.image_label)
 
-        # Buttons
-        self.load_button = QPushButton("Load Image")
+        # Buttons and combo box for functionalities
         self.load_button.clicked.connect(self.load_image)
         button_layout.addWidget(self.load_button)
 
-        self.grayscale_button = QPushButton("Convert to Grayscale")
-        self.grayscale_button.clicked.connect(self.apply_grayscale)
-        self.grayscale_button.setEnabled(False)  # Disabled initially
-        button_layout.addWidget(self.grayscale_button)
+        # Dropdown to select effects
+        self.effect_combo.addItems(
+            ["Grayscale", "Sketch Effect", "Contour Effect", "Tattoo Calc Effect"]
+        )
+        button_layout.addWidget(self.effect_combo)
+
+        # Button to apply the selected effect
+        self.apply_button.clicked.connect(self.apply_effect)
+        self.apply_button.setEnabled(False)  # Initially disabled
+        button_layout.addWidget(self.apply_button)
+
+        # Button to save the processed image
+        self.save_button.clicked.connect(self.save_image)
+        self.save_button.setEnabled(False)  # Initially disabled
+        button_layout.addWidget(self.save_button)
 
         # Add button layout to the main layout
         main_layout.addLayout(button_layout)
 
-        # Set the central widget
+        # Set the central widget with the main layout
         container = QWidget()
         container.setLayout(main_layout)
         self.setCentralWidget(container)
 
-        # Internal attributes
-        self.original_image = None
-
     def load_image(self):
         """
-        Loads an image from the file system and displays it in the application.
-
-        Opens a file dialog to choose an image file.
+        Opens a file dialog to load an image from the file system.
+        Enables the 'Apply Effect' button if an image is successfully loaded.
         """
         file_name, _ = QFileDialog.getOpenFileName(
             self, "Open Image", "", "Image Files (*.png *.jpg *.jpeg *.bmp)"
@@ -77,28 +96,50 @@ class ImageApp(QMainWindow):
             self.original_image = cv2.imread(file_name)
             if self.original_image is not None:
                 self.display_image(self.original_image)
-                self.grayscale_button.setEnabled(True)
+                self.apply_button.setEnabled(True)  # Enable the effect button
 
-    def apply_grayscale(self):
+    def apply_effect(self):
         """
-        Applies the grayscale effect to the loaded image and displays the result.
+        Applies the selected effect to the loaded image.
+        Enables the 'Save Image' button if processing is successful.
         """
         if self.original_image is not None:
-            grayscale_image = convert_to_grayscale(self.original_image)
-            self.display_image(grayscale_image)
+            # Retrieve the selected effect from the dropdown
+            effect = self.effect_combo.currentText()
+            if effect == "Grayscale":
+                self.processed_image = convert_to_grayscale(self.original_image)
+            elif effect == "Sketch Effect":
+                self.processed_image = apply_sketch_effect(self.original_image)
+            elif effect == "Contour Effect":
+                self.processed_image = apply_contour_effect(self.original_image)
+            elif effect == "Tattoo Calc Effect":
+                self.processed_image = apply_tattoo_calc_effect(self.original_image)
+
+            # Display the processed image
+            self.display_image(self.processed_image)
+            self.save_button.setEnabled(True)  # Enable the save button
+
+    def save_image(self):
+        """
+        Opens a file dialog to save the processed image to the file system.
+        """
+        if self.processed_image is not None:
+            save_path, _ = QFileDialog.getSaveFileName(
+                self, "Save Image", "", "Image Files (*.png *.jpg *.jpeg *.bmp)"
+            )
+            if save_path:
+                cv2.imwrite(save_path, self.processed_image)
 
     def display_image(self, image):
         """
-        Displays an image in the QLabel widget.
+        Converts an OpenCV image to QPixmap and displays it in the QLabel widget.
 
         Args:
-            image (np.ndarray): The image to be displayed (OpenCV format).
+            image (np.ndarray): The image to display (OpenCV format).
         """
         if len(image.shape) == 2:  # Grayscale image
             height, width = image.shape
-            q_image = QImage(
-                image.data, width, height, width, QImage.Format_Grayscale8
-            )
+            q_image = QImage(image.data, width, height, width, QImage.Format_Grayscale8)
         else:  # Color image
             height, width, channel = image.shape
             bytes_per_line = channel * width
@@ -106,9 +147,12 @@ class ImageApp(QMainWindow):
                 image.data, width, height, bytes_per_line, QImage.Format_RGB888
             ).rgbSwapped()
 
+        # Convert QImage to QPixmap and display it
         pixmap = QPixmap.fromImage(q_image)
         self.image_label.setPixmap(
-            pixmap.scaled(self.image_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            pixmap.scaled(
+                self.image_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation
+            )
         )
 
 
