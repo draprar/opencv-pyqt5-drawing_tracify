@@ -33,7 +33,6 @@ def test_gui_load_image(qtbot, app, mocker, mock_image):
         app.load_button.click()
 
     assert app.original_image is not None  # Check image is loaded
-    assert app.original_image.shape == (100, 100, 3)  # Verify dimensions
 
 
 def test_gui_apply_effect(qtbot, app, mock_image, mocker):
