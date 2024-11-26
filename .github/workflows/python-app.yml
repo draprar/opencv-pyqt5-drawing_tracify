@@ -45,5 +45,16 @@ jobs:
           pgrep Xvfb
           echo "DISPLAY: $DISPLAY"
 
-      - name: Run GUI tests
-        run: xvfb-run `which coverage` run -m pytest
+      - name: Test
+        env:
+          QT_DEBUG_PLUGINS: 1
+        run: |
+          ulimit -c unlimited
+          sudo catchsegv xvfb-run --auto-servernum `which coverage` run -m pytest
+
+      - name: chmod
+        if: always()
+        run: |
+          if [[ -d "$DIRECTORY" ]]; then
+            sudo chmod -R +rwx /var/crash
+          fi
