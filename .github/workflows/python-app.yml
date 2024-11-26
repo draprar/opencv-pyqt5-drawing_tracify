@@ -23,25 +23,38 @@ jobs:
         with:
           python-version: 3.11
 
-      - name: Setup xvfb (Linux)
-        if: runner.os == 'Linux'
+      - name: Install system dependencies
         run: |
-          # Stuff copied wildly from several stackoverflow posts
-          sudo apt-get install -y xvfb libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-xinerama0 libxcb-xinput0 libxcb-xfixes0 libxcb-shape0 libglib2.0-0 libgl1-mesa-dev
-          sudo apt-get install '^libxcb.*-dev' libx11-xcb-dev libglu1-mesa-dev libxrender-dev libxi-dev libxkbcommon-dev libxkbcommon-x11-dev
-          # start xvfb in the background
-          sudo /usr/bin/Xvfb $DISPLAY -screen 0 1280x1024x24 &
-      - name: Install Python dependencies
+          sudo apt-get update
+          sudo apt-get install -y libgl1-mesa-glx x11-utils libxkbcommon-x11-0 libxi6 libxtst6 libxrender1 libxfixes3 xvfb
+
+      - name: Install dependencies
         run: |
-          # prerequisites
-          python -m pip install --upgrade pip wheel
-          python -m pip install coverage flake8 pytest pytest-qt
-      - name: Install package
+          pip install --upgrade pip
+          pip install -r requirements.txt pytest pytest-qt pytest-mock coverage
+
+      - name: Start Xvfb
         run: |
-          pip install -e .
-      - name: List installed packages
+          Xvfb :99 -screen 0 1920x1080x24 &
+          export DISPLAY=:99
+          sleep 3
+
+      - name: Debug Xvfb
         run: |
-          pip freeze
-      - name: Test with pytest
+          echo "Checking Xvfb status:"
+          pgrep Xvfb
+          echo "DISPLAY: $DISPLAY"
+
+      - name: Test
+        env:
+          QT_DEBUG_PLUGINS: 1
         run: |
-          coverage run --source=mpl_data_cast -m pytest -x tests
+          ulimit -c unlimited
+          xvfb-run --auto-servernum `which coverage` run -m pytest
+
+      - name: chmod
+        if: always()
+        run: |
+          if [[ -d "$DIRECTORY" ]]; then
+            sudo chmod -R +rwx /var/crash
+          fi
