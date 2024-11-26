@@ -26,35 +26,34 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get -qq install libxcb-xinerama0 pyqt5-dev-tools
+          sudo apt-get -qq install libxcb-xinerama0 libxkbcommon-x11-0 pyqt5-dev-tools
+
+      - name: Start Xvfb
+        run: |
+          Xvfb :99 -screen 0 1920x1080x24 -ac &
+          export DISPLAY=:99
+          sleep 3
+
+      - name: Debug Xvfb and PyQt5
+        run: |
+          python -c "from PyQt5.QtWidgets import QApplication; app = QApplication([]); print('PyQt5 works')"
+          echo "DISPLAY: $DISPLAY"
 
       - name: Install dependencies
         run: |
           pip install --upgrade pip
           pip install -r requirements.txt pytest pytest-qt pytest-mock coverage
 
-      - name: Start Xvfb
-        run: |
-          Xvfb :99 -screen 0 1920x1080x24 &
-          export DISPLAY=:99
-          sleep 3
-
-      - name: Debug Xvfb
-        run: |
-          echo "Checking Xvfb status:"
-          pgrep Xvfb
-          echo "DISPLAY: $DISPLAY"
-
-      - name: Test
+      - name: Run Tests
         env:
           QT_DEBUG_PLUGINS: 1
         run: |
-          ulimit -c unlimited
-          xvfb-run --auto-servernum `which coverage` run -m pytest
+          xvfb-run --auto-servernum coverage run -m pytest tests/
 
-      - name: chmod
-        if: always()
+      - name: Debug Core Dumps
+        if: failure()
         run: |
-          if [[ -d "$DIRECTORY" ]]; then
-            sudo chmod -R +rwx /var/crash
-          fi
+          for core in /var/crash/*; do
+            echo "Found core dump: $core"
+            gdb -c "$core" /usr/bin/python3 -ex "thread apply all bt" -ex "quit"
+          done
