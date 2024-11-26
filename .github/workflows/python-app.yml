@@ -1,62 +1,28 @@
-name: Tracify CI
+name: Windows Test Workflow
 
 on:
   push:
     branches:
       - main
   pull_request:
-    branches:
-      - main
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    env:
-      DISPLAY: :99
+  test-on-windows:
+    runs-on: windows-latest
 
     steps:
-      - name: Check out the repository
+      - name: Check out code
         uses: actions/checkout@v3
 
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.11
-
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libxcb-xinerama0 libxkbcommon-x11-0 pyqt5-dev-tools gdb
-
-      - name: Start Xvfb
-        run: |
-          Xvfb :99 -screen 0 1920x1080x24 -ac &
-          export DISPLAY=:99
-          sleep 3
+          python-version: '3.11'
 
       - name: Install dependencies
         run: |
-          pip install --upgrade pip
-          pip install -r requirements.txt PyQt5 coverage
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
-      - name: Verify PyQt5 installation
-        run: |
-          python -c "import PyQt5; print('PyQt5 installed')"
-
-      - name: Verify Coverage Installation
-        run: |
-          python -c "import coverage; print('Coverage installed successfully')"
-
-      - name: Run Tests
-        env:
-          QT_DEBUG_PLUGINS: 1
-        run: |
-          xvfb-run --auto-servernum coverage run -m pytest tests/
-
-      - name: Debug Core Dumps
-        if: failure()
-        run: |
-          for core in /var/crash/*; do
-            echo "Found core dump: $core"
-            gdb -c "$core" /usr/bin/python3 -ex "thread apply all bt" -ex "quit"
-          done
+      - name: Run tests
+        run: python -m pytest tests/

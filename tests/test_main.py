@@ -1,5 +1,5 @@
 import pytest
-from PyQt5.QtWidgets import QApplication, QFileDialog
+from PyQt5.QtWidgets import QFileDialog
 from PyQt5.QtCore import Qt
 from main import ImageApp
 import cv2
