@@ -37,11 +37,15 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install -r requirements.txt PyQt5
+          pip install -r requirements.txt PyQt5 coverage
 
       - name: Verify PyQt5 installation
         run: |
           python -c "import PyQt5; print('PyQt5 installed')"
+
+      - name: Verify Coverage Installation
+        run: |
+          python -c "import coverage; print('Coverage installed successfully')"
 
       - name: Run Tests
         env:
