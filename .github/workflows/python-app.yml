@@ -26,7 +26,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get -qq install libxcb-xinerama0 libxkbcommon-x11-0 pyqt5-dev-tools
+          sudo apt-get install -y libxcb-xinerama0 libxkbcommon-x11-0 pyqt5-dev-tools gdb
 
       - name: Start Xvfb
         run: |
@@ -34,15 +34,14 @@ jobs:
           export DISPLAY=:99
           sleep 3
 
-      - name: Debug Xvfb and PyQt5
-        run: |
-          python -c "from PyQt5.QtWidgets import QApplication; app = QApplication([]); print('PyQt5 works')"
-          echo "DISPLAY: $DISPLAY"
-
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install -r requirements.txt pytest pytest-qt pytest-mock coverage
+          pip install -r requirements.txt PyQt5
+
+      - name: Verify PyQt5 installation
+        run: |
+          python -c "import PyQt5; print('PyQt5 installed')"
 
       - name: Run Tests
         env:
