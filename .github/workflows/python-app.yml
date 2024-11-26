@@ -24,6 +24,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
+          sudo apt-get install -y libgl1-mesa-glx libxkbcommon-x11-0
           sudo apt-get install -y xvfb
           python -m pip install --upgrade pip
           pip install -r requirements.txt
@@ -33,11 +34,12 @@ jobs:
         run: |
           Xvfb :99 -screen 0 1024x768x16 &
           sleep 5
+          pgrep Xvfb || { echo "Xvfb failed to start"; exit 1; }
         env:
           DISPLAY: :99
 
       - name: Run tests with pytest
         run: |
-          python -m pytest tests/ --maxfail=1
+          python -m pytest tests/ --maxfail=1 --tb=short -v
         env:
           DISPLAY: :99
