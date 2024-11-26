@@ -27,6 +27,14 @@ jobs:
           pip install -r requirements.txt
           python -m pip install pytest pytest-mock pytest-qt
 
-      - name: Run tests with pytest
+      - name: Run Xvfb
         run: |
-          python -m pytest
+          Xvfb :99 -screen 0 1024x768x16 & # Start Xvfb
+          sleep 5 # Give Xvfb time to initialize
+          export DISPLAY=:99 # Set DISPLAY variable
+          echo "Xvfb started on display $DISPLAY"
+
+          - name: Run tests with pytest
+            run: |
+              export DISPLAY=:99
+              python -m pytest tests/ --maxfail=1
