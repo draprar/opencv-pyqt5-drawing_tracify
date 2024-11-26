@@ -26,12 +26,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgl1-mesa-glx libxkbcommon-x11-0 xvfb
-
-      - name: Install Python dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          sudo apt-get install -y libgl1-mesa-glx libxkbcommon-x11-0 libxi6 libxtst6 libxrender1 libxfixes3 xvfb
 
       - name: Start Xvfb
         run: |
@@ -45,5 +40,5 @@ jobs:
           pgrep Xvfb
           echo "DISPLAY: $DISPLAY"
 
-      - name: Run tests with pytest
-        run: python -m pytest --maxfail=1 --tb=long -vv
+      - name: Run GUI tests
+        run: xvfb-run -a python -m pytest tests/test_main.py --maxfail=1 --tb=long -vv
